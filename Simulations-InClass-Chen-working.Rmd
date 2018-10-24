@@ -177,8 +177,93 @@ var(part_e2[3, ])
 
 3. **Markov Chains**. Suppose you have a game where the probability of winning on your first hand is 48%; each time you win, that probability goes up by one percentage point for the next game (to a maximum of 100%, where it must stay), and each time you lose, it goes back down to 48%. Assume you cannot go bust and that the size of your wager is a constant $100.
     a. Is this a fair game? Simulate one hundred thousand sequential hands to determine the size of your return. Then repeat this simulation 99 more times to get a range of values to calculate the expectation.
+```{r}
+set.seed(1)
+#build the markov function based off the gamblers_ruin function
+markov <- function(bet, p, maxrun = 100000){
+  n <- 0 #initialize count of hands
+  prob <- p
+  net <- 0 #net represents net winnings
+  while (1 > 0) {
+    probval <- runif(1)
+    if (probval <= p) { #if win game, add bet value to net value; and increase probability of winning by 1%
+      net <- net + bet
+      p <- p + 0.01
+    }else { #if lose game, subtract bet value from net value; and return probability of winning back to original input
+      net <- net - bet
+      p <- prob
+    }
+    n <- n + 1 #increase hand by 1
+    if (n == maxrun) { #simulate 100,000 sequential hands
+      break
+      }
+  }
+  return(net) #return bankroll value
+}
+
+winnings <- function(bet, p, sims) {
+  size <- numeric() #initialize size vector
+  for (i in 1:sims) { #simulate 100 times
+    next_size <- markov(bet, p) #fill the size vector using the markov function
+    size <- c(size, next_size)
+  }
+  return(size)
+}
+
+mean(winnings(100, 0.48, 100)) #calculate the mean size of returns
+```
+This is not a fair game: my mean return is -199260.
     b. Repeat this process but change the starting probability to a new value within 2% either way. Get the expected return after 100 repetitions. Keep exploring until you have a return value that is as fair as you can make it. Can you do this automatically?
-    c. Repeat again, keeping the initial probability at 48%, but this time change the probability increment to a value different from 1%. Get the expected return after 100 repetitions. Keep changing this value until you have a return value that is as fair as you can make it. 
+```{r}
+set.seed(1)
+for (j in 1:20) { #loop to make process automatic, intend to have starting value between 46% and 50%
+  size = numeric() #initialize size vector
+  for(i in 1:100) { #simulate 100 times
+    next_size <- markov(100, 0.46+0.002*j, maxrun = 100000) #fill the size vector using the markov function
+    size <- c(size, next_size)
+  }
+  if (mean(size) > 0) {
+    print(j)
+  }
+}
+
+```    
+    c. Repeat again, keeping the initial probability at 48%, but this time change the probability increment to a value different from 1%. Get the expected return after 100 repetitions. Keep changing this value until you have a return value that is as fair as you can make it.
+```{r}
+#modify the markov function by including an increment input
+markov_inc <- function(bet, p, inc, maxrun = 100000){
+  n <- 0 #initialize count of hands
+  prob <- p
+  net <- 0 #net represents net winnings
+  while (1 > 0) {
+    probval <- runif(1)
+    if (probval <= p) { #if win game, add bet value to net value; and increase probability of winning by 1%
+      net <- net + bet
+      p <- p + inc
+    }else { #if lose game, subtract bet value from net value; and return probability of winning back to original input
+      net <- net - bet
+      p <- prob
+    }
+    n <- n + 1 #increase hand by 1
+    if (n == maxrun) { #simulate 100,000 sequential hands
+      break
+      }
+  }
+  return(net) #return bankroll value
+}
+
+set.seed(1)
+for (j in 1:20) { #loop to make process automatic, intend to have starting value between 46% and 50%
+  size = numeric() #initialize size vector
+  for(i in 1:100) { #simulate 100 times
+    next_size <- markov_inc(100, 0.48, 0.01+j/1000, maxrun = 100000) #fill the size vector using the markov function
+    size <- c(size, next_size)
+  }
+  if (mean(size) > 0) {
+    print(j)
+  }
+}
+```
 
 
 4. Creating a Bootstrap function. There is a particular concept called [bootstrapping]
@@ -192,6 +277,23 @@ The steps of this process are:
   d. The lower bound of a 95% CI will be the 0.025 percentile
   e. The upper bound of a 95% CI will be the 0.975 percentile
 
-Make a function called `boot_ci` which calculates the 95% confidence interval in this manner. 
+Make a function called `boot_ci` which calculates the 95% confidence interval in this manner.
+
+```{r}
+boot_ci <- function(data, fun, iterations = 1000, lowerci = 0.025, upperci = 0.975) { #mandatory inputs are dataset of interest and sample statistic you want to calculate; iterations, lowerci, and upperci all have default values
+  sample_stats <- vector(length = iterations) #initialize sample_stats vector
+  for (i in 1:iterations) { #repeat as many times as specified...
+    temp_sample <- sample(data, length(data), replace = TRUE) #sample with replacement from data 
+    sample_stats[i] <- fun(temp_sample)
+  }
+  lowerbound <- quantile(sample_stats, probs = lowerci) #find the lowerbound value
+  upperbound <- quantile(sample_stats, probs = upperci) #find the upperbound value
+  return(c(lowerbound, upperbound)) #return the 95% CI
+}
+
+testing <- c(1:100)
+boot_ci(testing, mean)
+```
+
 
 5. For problems 3b and 3c, you calculated a mean value. Because you saved these final results in a vector, use the bootstrap to estimate the variance of the return in each case for your final answer. Once you have these results, which game has the smaller variance in returns?
