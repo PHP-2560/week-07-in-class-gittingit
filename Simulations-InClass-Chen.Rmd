@@ -45,7 +45,7 @@ Note: you *must* stop playing if your player has gone bust. How will you handle 
 ```{r}
 gamblers_ruin <- function(bet, bankroll, p){ #inputs are the bet amount (bet), the starting bankroll minus the first placed bet amount (bankroll), and the probabilty of sucess (p)
   n <- 0 #initialize 
-  while (bankroll > 0) { #run this loop while bets are greater than 0
+  while (bankroll > 0) { #run this loop while bankroll is greater than 0
     probval <- runif(1) #generate one random value from the uniform distribution, use it as the probability of winning the hand
     if (probval <= p) { #if wins hand (probval <= p), raise the bet by fixed fraction of bankroll (10%)
       bankroll <- bet + bankroll #add the won bet value to initial bankroll value

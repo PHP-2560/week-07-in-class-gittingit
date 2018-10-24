@@ -34,55 +34,71 @@ With this project we will simulate a famoues probability problem. This will not 
 ```{r}
 
 #You lose when the cumulative sum (where a win is 1 and a loss is -1) is such that -bankroll/bet >= -cumsum (i.e. bankroll/bet tells you how many net losses you can sustain)
+set.seed(1)
+
 play_n_rounds1 <- function(n, bankroll, bet, p=.5){ #here we simulate n rounds
 cumsum <- 0
 thisround <- 0
-roundsmatrix <- matrix(NA, 1, n, byrow=F) #initiallizing the values and matrix we will be using
-  for(i in 1:n) { #want n many rounds
-    if(cumsum == -bankroll/bet) { #if your out of money, keep the ratio of your cumsum
-      roundsmatrix[i] <- cumsum
+bank <- bankroll
+roundsmatrix <- matrix(NA, 4, n, byrow=F) #initiallizing the values and matrix we will be using, row 1 contains the amount lost or gained each hand, row 2 will hold number of hands played, row 3 contains the total bankroll amount
+  for(i in 1:n) { #want n many rounds, row 4 says whether we went bust or not
+    if(cumsum == -bankroll) { #if your out of money, keep the ratio of your cumsum
+      roundsmatrix[1, i] <- cumsum
+      roundsmatrix[2, i] <- count
+      roundsmatrix[3, i] <- bank #should be 0
+      roundsmatrix[4, i] <- bank #should be 0
     } else { #play again
-      thisround <- rbinom(1,1,p)*2-1 #gives positive 1 or negative 1 (a win or a loss)
-    cumsum <- cumsum + thisround #cumsum keeps a cumulative sum
-    roundsmatrix[i] <- cumsum}
+      count <- i
+      win_loss <- rbinom(1,1,p)*2-1
+      thisround <- win_loss*bet #gives us a positive bet or a negative bet
+      
+      cumsum <- cumsum + thisround #cumsum keeps a cumulative sum
+      roundsmatrix[1, i] <- cumsum
+    
+      roundsmatrix[2, i] <- count
+    
+      bank <- bank + bet*win_loss
+      roundsmatrix[3, i] <- bank}
+    
+      if (bank == 0) {
+        roundsmatrix[4, i] <- 0 #0 indicates that we went bankrupt on the last hand
+      } else {
+        roundsmatrix[4, i] <- 1 #1 indicates that we have not yet gone bankrupt
+      }
+      
   }
-print(roundsmatrix[n]) #if this value is -bankroll/bet you ran out of money, otherwise you made it
+print(roundsmatrix[,n]) #prints out the entire matrix
 }
+
 play_n_rounds1(12, 1000,1000) #testing the function
 
 
 simulate_survival <- function (sims, n, bankroll, bet, p=.5) {
-  results <- matrix(NA, 1,sims, byrow=F) #going to make a matrix store the simulationo results in
+  results <- matrix(NA, 4, sims, byrow=F) #going to make a matrix store the simulationo results in
   for(i in 1:sims) {
-    results[1,i] <- play_n_rounds1(n, bankroll, bet, p)
-  } #this gives us our needed output, but it is messy, if you ran out of money the value is -bankroll/bets, otherwise it is a higher value. Let's clean that up now
-  for(i in 1:sims) {
-    if(results[1,i] == -bankroll/bet) {
-      results[1,i] <- 0 #let zero represent people who went bust
-    } else (results[1,i] <- 1) #let 1 represent people who made it through without going bust
+    results[,i] <- play_n_rounds1(n, bankroll, bet, p) #column n in the output (end of the game) gets stored in the results for iteration i
   }
   return(results)
 } 
 simulate_survival(100,12, 1000,1000)
  
-p_win <- function(matrix) {print(mean(matrix))}
-p_lose<- function(matrix) {print(1-mean(matrix))}
+p_win <- function(matrix_row) {print(mean(matrix_row))}
+p_lose<- function(matrix_row) {print(1-mean(matrix_row))}
 
 
 #we want to run a simulation with 5000 sims, n of 100, a bankroll of 1000, and a bet of 100, (and a p of 0.5)
-p_lose(simulate_survival(5000, 100, 1000, 100))
+p_lose(simulate_survival(5000, 100, 1000, 100)[4,])
 
 
 ```
     b. the probability that you have busted by the time you have placed your five hundredth bet by simulating the outcome directly. 
 ```{r}
-p_lose(simulate_survival(5000, 500, 1000, 100)) #this is the same thing, we just changed n
+p_lose(simulate_survival(5000, 500, 1000, 100)[4,]) #this is the same thing, we just changed n
     
 ```
     c. the mean time you go bust, given that you go bust within the first 5000 hands.
 ```{r}
 #now we need a counter, and we only want to look at the times where we bust, first we will ad a counter into the earlier code then we will  limit ourselves to busts
-
 play_n_rounds2 <- function(n, bankroll, bet, p=.5){ #play n rounds 2 will tell us how many rounds we survived ( with a maximum value of n)
 cumsum <- 0
 thisround <- 0
@@ -122,50 +138,15 @@ mean(simulate_bust_time(500, 5000, 1000, 100), na.rm=T) #ran a simulation of 500
 ```
     d. the mean and variance of your bankroll after 100 hands (including busts).
 ```{r}
-#we need to convert back from the cumsum to the money value by multiplying it by the bet. This will require changing some of our earlier code which had given a 0 1 output
-whats_left <- function(bankroll, bet, cumsum) {
-  finalbankroll = bankroll + bet*cumsum
-  return(finalbankroll)
-}
-
-
-
-play_n_rounds3 <- function(n, bankroll, bet, p=.5){ #note this is 3rd one of these
-cumsum <- 0
-thisround <- 0
-roundsmatrix <- matrix(NA, 1, n, byrow=F) 
-  for(i in 1:n) { 
-    if(cumsum == -bankroll/bet) { 
-      roundsmatrix[i] <- cumsum
-    } else { 
-      thisround <- rbinom(1,1,p)*2-1 
-    cumsum <- cumsum + thisround 
-    roundsmatrix[i] <- bankroll + bet*cumsum} #We change what we store now so that roundsmatrix (which will be our output) has our dollar total
-  }
-print(roundsmatrix[n]) #this will be zero if we go bankrupt
-}
-play_n_rounds3(12, 1000,100) #testing the function
-
-
-simulate_gambles <- function (sims, n, bankroll, bet, p=.5) { #again it is roughly the same function with some changes
-  results <- matrix(NA, 1,sims, byrow=F) 
-  for(i in 1:sims) {
-    results[1,i] <- play_n_rounds3(n, bankroll, bet, p) #this time we use rounds3
-  } 
-#no longer need our for loop since we are using all cases
-  return(results)
-} 
-test <- simulate_gambles(1000,100, 1000,100) #1000 simulations of 100 hands with 1000 strting bankroll and bets of 100
-mean(test) #gave 1012.99
-(sd(test))^2 #not sure why var is throwing an error??? sd works fine though so I'll use it, gave 809090.5
-
-
+part_d <- simulate_survival(5000, 100, 1000, 100) #5000 simulations of 100 hands
+mean(part_d[3, ])
+var(part_d[3, ])
 ```
     e. the mean and variance of your bankroll after 500 hands (including busts).
 ```{r}
-test2 <- simulate_gambles(1000,500, 1000,100) #1000 simulations of 500 hands with 1000 strting bankroll and bets of 100
-mean(test) #gave 1016.49
-(sd(test))^2 #gave 2760734
+part_e <- simulate_survival(5000, 500, 1000, 100) #5000 simulations of 500 hands
+mean(part_e[3, ])
+var(part_e[3, ])
     
 ```
  
